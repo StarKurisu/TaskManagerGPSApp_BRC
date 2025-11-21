@@ -1,36 +1,113 @@
 package com.example.taskmanagergpsapp_brc;
 
+import android.app.Application;
+import android.content.Context;
+
+import androidx.annotation.NonNull;
+import androidx.lifecycle.AndroidViewModel;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.MutableLiveData;
 import androidx.lifecycle.ViewModel;
 
+import com.example.taskmanagergpsapp_brc.Data.AppDatabase;
 import com.example.taskmanagergpsapp_brc.Data.Status;
 import com.example.taskmanagergpsapp_brc.Data.Task;
+import com.example.taskmanagergpsapp_brc.Data.TaskDao;
+import com.example.taskmanagergpsapp_brc.Data.TaskJsonHelper;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class TaskViewModel extends ViewModel {
-    private final MutableLiveData<List<Task>> tasks = new MutableLiveData<>(new ArrayList<>());
+public class TaskViewModel extends AndroidViewModel {
+
+    private final AppDatabase db;
+    private final TaskDao taskDao;
+    private final MutableLiveData<List<Task>> tasksLiveData = new MutableLiveData<>();
+    private final ExecutorService executor = Executors.newSingleThreadExecutor();
+
+    public TaskViewModel(@NonNull Application application) {
+        super(application);
+        db = AppDatabase.getInstance(application);
+        taskDao = db.taskDao();
+        loadTasks();
+    }
 
     public LiveData<List<Task>> getTasks() {
-        return tasks;
+        return tasksLiveData;
     }
 
-    public void addTask(Task task) {
-        List<Task> current = new ArrayList<>(tasks.getValue());
-        current.add(task);
-        tasks.setValue(current);
+    // Load all tasks from Room
+    private void loadTasks() {
+        executor.execute(() -> {
+            List<Task> list = taskDao.getAllTasks();
+            tasksLiveData.postValue(list);
+        });
     }
-    public void moveTask(int id, Status newStatus) {
-        List<Task> current = new ArrayList<>(tasks.getValue());
-        for (int i = 0; i < current.size(); i++) {
-            Task t = current.get(i);
-            if (t.getId() == id) {
-                t.setStatus(newStatus);
-                break;
+
+    // Add a new task
+    public void addTask(Task task) {
+        executor.execute(() -> {
+            long id = taskDao.insert(task); // insert into DB
+            task.id = id;                   // set generated id
+            loadTasks();                     // refresh LiveData
+        });
+    }
+
+    // Update an existing task
+    public void updateTask(Task task) {
+        executor.execute(() -> {
+            taskDao.update(task);
+            loadTasks();
+        });
+    }
+
+    // Move a task to a new status
+    public void moveTask(long taskId, Status newStatus) {
+        executor.execute(() -> {
+            Task t = null;
+            List<Task> allTasks = taskDao.getAllTasks();
+            for (Task task : allTasks) {
+                if (task.id == taskId) {
+                    t = task;
+                    break;
+                }
             }
-        }
-        tasks.setValue(current);
+            if (t != null) {
+                t.setStatus(newStatus);
+                taskDao.update(t);
+            }
+            loadTasks();
+        });
+    }
+
+    // Delete a task
+    public void deleteTask(Task task) {
+        executor.execute(() -> {
+            taskDao.delete(task);
+            loadTasks();
+        });
+    }
+
+    public void exportTasks(Context context, String filename) {
+        executor.execute(() -> {
+            List<Task> allTasks = taskDao.getAllTasks();
+            TaskJsonHelper.exportTasksToJson(context, allTasks, filename);
+        });
+    }
+
+    public void importTasks(Context context, String filename) {
+
+        executor.execute(() -> {
+            taskDao.deleteAll();
+            List<Task> importedTasks = TaskJsonHelper.importTasksFromJson(context, filename);
+            if (importedTasks != null) {
+                for (Task t : importedTasks) {
+                    taskDao.insert(t);
+                }
+                loadTasks();
+            }
+        });
     }
 }
