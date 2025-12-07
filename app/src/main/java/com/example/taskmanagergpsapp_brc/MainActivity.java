@@ -332,7 +332,8 @@ public class MainActivity extends AppCompatActivity {
             }
         });
         builder.setNegativeButton("Cancel", null);
-        builder.show();
+        if (!isFinishing())
+            builder.show();
     }
 
     @Override
