@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">TaskManagerGPSApp_BRC</string>
+    <string name="status">Status</string>
 </resources>

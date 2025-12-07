@@ -19,6 +19,9 @@ public interface TaskDao {
     void delete(Task task);
     @Query("DELETE FROM tasks")
     void deleteAll();
+    @Query("DELETE FROM tasks WHERE status = :status")
+    void deleteByStatus(Status status);
+
     @Query("SELECT * FROM tasks")
     List<Task> getAllTasks();
     @Query("SELECT * FROM tasks WHERE status = :status")

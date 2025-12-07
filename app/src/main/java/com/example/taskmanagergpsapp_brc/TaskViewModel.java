@@ -38,7 +38,7 @@ public class TaskViewModel extends AndroidViewModel {
         return tasksLiveData;
     }
 
-    // Load all tasks from Room
+
     private void loadTasks() {
         executor.execute(() -> {
             List<Task> list = taskDao.getAllTasks();
@@ -46,16 +46,16 @@ public class TaskViewModel extends AndroidViewModel {
         });
     }
 
-    // Add a new task
+
     public void addTask(Task task) {
         executor.execute(() -> {
-            long id = taskDao.insert(task); // insert into DB
-            task.id = id;                   // set generated id
-            loadTasks();                     // refresh LiveData
+            long id = taskDao.insert(task);
+            task.id = id;
+            loadTasks();
         });
     }
 
-    // Update an existing task
+
     public void updateTask(Task task) {
         executor.execute(() -> {
             taskDao.update(task);
@@ -63,7 +63,7 @@ public class TaskViewModel extends AndroidViewModel {
         });
     }
 
-    // Move a task to a new status
+
     public void moveTask(long taskId, Status newStatus) {
         executor.execute(() -> {
             Task t = null;
@@ -82,13 +82,19 @@ public class TaskViewModel extends AndroidViewModel {
         });
     }
 
-    // Delete a task
+
     public void deleteTask(Task task) {
         executor.execute(() -> {
             taskDao.delete(task);
             loadTasks();
         });
     }
+    public void deleteAllDoneTasks() {
+        executor.execute(() -> {
+            taskDao.deleteByStatus(Status.DONE);
+        });
+    }
+
 
     public void exportTasks(Context context, String filename) {
         executor.execute(() -> {
